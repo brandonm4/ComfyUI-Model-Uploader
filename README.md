@@ -45,16 +45,10 @@ Uploads are written to a temporary `.model-uploader-*.part` file in the destinat
 
 Failed folder and upload requests return a `requestId` in the sidebar status. The same id is written to the ComfyUI server log with the backend stack trace.
 
-To expose the recent in-memory Model Uploader event log while testing, start ComfyUI with:
-
-```bash
-COMFY_MODEL_UPLOADER_DEBUG=1 COMFY_MODEL_UPLOADER_DEBUG_TOKEN=change-me python main.py
-```
-
-Then fetch:
+The recent in-memory Model Uploader event log is available while testing at:
 
 ```text
-GET /model-uploader/debug/events?token=change-me
+GET /model-uploader/debug/events
 ```
 
 ## ComfyUI Manager

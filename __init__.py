@@ -29,10 +29,6 @@ _DEBUG_LOCK = threading.Lock()
 _LOGGER = logging.getLogger("ComfyUI.ModelUploader")
 
 
-def _env_flag(name):
-    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
-
-
 def _request_id(request):
     header_value = request.headers.get("X-Request-ID") if request is not None else None
     if header_value:
@@ -89,32 +85,6 @@ def _unexpected_error(operation, request_id, exc, **context):
         safe_context,
     )
     return _json_error(500, f"Internal error while handling {operation}.", request_id)
-
-
-def _is_debug_enabled():
-    return _env_flag("COMFY_MODEL_UPLOADER_DEBUG")
-
-
-def _debug_token():
-    return os.environ.get("COMFY_MODEL_UPLOADER_DEBUG_TOKEN", "")
-
-
-def _authorize_debug_request(request):
-    if not _is_debug_enabled():
-        raise web.HTTPNotFound(reason="Model Uploader debug logging is not enabled.")
-
-    token = _debug_token()
-    if not token:
-        return
-
-    auth_header = request.headers.get("Authorization", "")
-    provided = ""
-    if auth_header.startswith("Bearer "):
-        provided = auth_header[7:]
-    if not provided:
-        provided = request.query.get("token", "")
-    if provided != token:
-        raise web.HTTPForbidden(reason="Invalid Model Uploader debug token.")
 
 
 def _map_model_type(model_type):
@@ -461,11 +431,6 @@ async def get_model_uploader_tree(request):
 @routes.get("/model-uploader/debug/events")
 async def get_model_uploader_debug_events(request):
     request_id = _request_id(request)
-    try:
-        _authorize_debug_request(request)
-    except web.HTTPException as exc:
-        return _json_error(exc.status, exc.reason, request_id)
-
     try:
         with _DEBUG_LOCK:
             events = list(_DEBUG_EVENTS)
