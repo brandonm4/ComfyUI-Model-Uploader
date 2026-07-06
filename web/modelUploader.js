@@ -849,6 +849,12 @@ app.registerExtension({
       return;
     }
 
+    try {
+      manager.unregisterSidebarTab?.(TAB_ID);
+    } catch {
+      // If the tab was not registered yet, continue with normal registration.
+    }
+
     activeInstance = new ModelUploaderSidebar();
     manager.registerSidebarTab({
       id: TAB_ID,
