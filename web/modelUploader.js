@@ -276,21 +276,32 @@ async function fetchJson(route, options = {}) {
   });
 
   if (!response.ok) {
-    let message = response.statusText || `HTTP ${response.status}`;
-    try {
-      const payload = await response.json();
-      message = payload.error || message;
-    } catch {
-      try {
-        message = await response.text();
-      } catch {
-        // Keep the response status text.
-      }
-    }
-    throw new Error(message);
+    throw new Error(await readErrorMessage(response));
   }
 
   return response.json();
+}
+
+async function readErrorMessage(response) {
+  let message = response.statusText || `HTTP ${response.status}`;
+  const fallbackResponse = response.clone();
+  try {
+    const payload = await response.json();
+    message = payload.error || message;
+    if (payload.requestId) {
+      message = `${message} (request ${payload.requestId})`;
+    }
+  } catch {
+    try {
+      const text = await fallbackResponse.text();
+      if (text) {
+        message = text;
+      }
+    } catch {
+      // Keep the response status text.
+    }
+  }
+  return message;
 }
 
 function formatBytes(value) {
@@ -328,6 +339,10 @@ function selectedLabel(selected) {
 
 function safePath(path) {
   return path || "";
+}
+
+function logError(context, error) {
+  console.error(`[Comfy Model Uploader] ${context}`, error);
 }
 
 class ModelUploaderSidebar {
@@ -490,6 +505,7 @@ class ModelUploaderSidebar {
       this.renderTree();
       this.setStatus(`${this.state.folders.length} model folders`, "success");
     } catch (error) {
+      logError("load folders failed", error);
       this.setStatus(error.message || String(error), "error");
     } finally {
       this.state.loading = false;
@@ -527,6 +543,7 @@ class ModelUploaderSidebar {
         this.setStatus("Ready");
       } catch (error) {
         this.state.expanded.delete(key);
+        logError("load folder tree failed", error);
         this.setStatus(error.message || String(error), "error");
       }
     }
@@ -762,14 +779,7 @@ class ModelUploaderSidebar {
           });
 
           if (!response.ok) {
-            let message = response.statusText || `HTTP ${response.status}`;
-            try {
-              const payload = await response.json();
-              message = payload.error || message;
-            } catch {
-              // Keep status text.
-            }
-            throw new Error(message);
+            throw new Error(await readErrorMessage(response));
           }
 
           const payload = await response.json();
@@ -787,6 +797,7 @@ class ModelUploaderSidebar {
       this.setStatus(`Uploaded ${finalName}`, "success");
       this.refreshComfyModels();
     } catch (error) {
+      logError("upload failed", error);
       if (uploadId) {
         await api.fetchApi(`${API_BASE}/upload/cancel/${encodeURIComponent(uploadId)}`, {
           method: "POST",
@@ -824,6 +835,7 @@ class ModelUploaderSidebar {
     try {
       await this.loadNode(selected.modelType, selected.pathIndex, selected.path);
     } catch (error) {
+      logError("refresh selected folder failed", error);
       this.setStatus(error.message || String(error), "error");
     }
     this.renderTree();

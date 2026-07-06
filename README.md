@@ -41,6 +41,22 @@ Uploads are written to a temporary `.model-uploader-*.part` file in the destinat
 - The extension only writes inside ComfyUI model roots. It excludes `custom_nodes` and `configs`.
 - If the destination filename exists, the server writes `name (1).ext`, `name (2).ext`, and so on.
 
+## Debugging
+
+Failed folder and upload requests return a `requestId` in the sidebar status. The same id is written to the ComfyUI server log with the backend stack trace.
+
+To expose the recent in-memory Model Uploader event log while testing, start ComfyUI with:
+
+```bash
+COMFY_MODEL_UPLOADER_DEBUG=1 COMFY_MODEL_UPLOADER_DEBUG_TOKEN=change-me python main.py
+```
+
+Then fetch:
+
+```text
+GET /model-uploader/debug/events?token=change-me
+```
+
 ## ComfyUI Manager
 
 Once this package is published as a GitHub repository, install it through ComfyUI Manager with:
