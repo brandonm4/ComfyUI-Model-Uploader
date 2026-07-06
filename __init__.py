@@ -157,10 +157,23 @@ def _join_relative(root, relative_path):
     return os.path.join(root, *relative_path.split("/"))
 
 
+def _is_within_directory(directory, target):
+    helper = getattr(folder_paths, "is_within_directory", None)
+    if helper is not None:
+        return helper(directory, target)
+
+    try:
+        directory = os.path.realpath(directory)
+        target = os.path.realpath(target)
+        return os.path.commonpath((directory, target)) == directory
+    except (OSError, ValueError):
+        return False
+
+
 def _get_directory(model_type, path_index, relative_path):
     root = _get_root(model_type, path_index)
     target_dir = _join_relative(root, relative_path)
-    if not folder_paths.is_within_directory(root, target_dir):
+    if not _is_within_directory(root, target_dir):
         raise web.HTTPForbidden(reason="Folder path escapes the model root.")
     return root, target_dir
 
@@ -348,7 +361,7 @@ async def get_model_uploader_tree(request):
             for entry in entries:
                 if entry.name == ".git" or entry.name.startswith(".model-uploader-"):
                     continue
-                if not folder_paths.is_within_directory(root, entry.path):
+                if not _is_within_directory(root, entry.path):
                     continue
                 try:
                     if entry.is_dir(follow_symlinks=True):
@@ -480,11 +493,11 @@ async def init_model_uploader_upload(request):
 
         root, target_dir = _get_directory(model_type, path_index, relative_path)
         os.makedirs(target_dir, exist_ok=True)
-        if not folder_paths.is_within_directory(root, target_dir):
+        if not _is_within_directory(root, target_dir):
             raise web.HTTPForbidden(reason="Folder path escapes the model root.")
 
         final_path, final_name = _unique_destination(target_dir, filename)
-        if not folder_paths.is_within_directory(root, final_path):
+        if not _is_within_directory(root, final_path):
             raise web.HTTPForbidden(reason="File path escapes the model root.")
 
         upload_id = uuid.uuid4().hex
@@ -737,7 +750,7 @@ async def complete_model_uploader_upload(request):
         if os.path.exists(final_path):
             final_path, final_name = _unique_destination(upload["target_dir"], final_name)
 
-        if not folder_paths.is_within_directory(upload["root"], final_path):
+        if not _is_within_directory(upload["root"], final_path):
             _record_event(
                 "warning",
                 "upload:complete",
